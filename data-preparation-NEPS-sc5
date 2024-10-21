@@ -1,1 +1,916 @@
-REMOTE NEPS SC5
+# REMOTE NEPS SC5 
+# Data Preparation for Empirical Chap.2 in RStudio
+# Feel free to point out any errors and mistakes - I really appreciate your feedback!
+
+#=========================================================#
+#===== Data Preparation 0: NEPS-SC5 Explore & Merge ======#
+#=========================================================#
+
+# Reproducibility ----
+# Print session information
+print(sessionInfo())
+
+# Load libraries 
+library('haven')
+library('labelled')
+library('dplyr')
+library('tidyverse')
+library('ggplot2')
+library('sjPlot')
+library('knitr')
+
+
+# Set working directory 
+setwd("Y:/Documents")
+
+
+#=========================================================#
+# 1. Select & Merge ====
+#=========================================================#
+
+# 1) Biography
+df_Biography <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_Biography_R_19-0-0.sav')
+glimpse(df_Biography)
+
+table(df_Biography$wave)
+# viewing value labels for data imported using haven:
+df_Biography$wave %>% 
+  attr('labels')
+df_Biography$wave %>% 
+  attr('label')
+# check spell modules can be merged to this file
+table(df_Biography$sptype)
+df_Biography$sptype %>% 
+  attr('labels')
+# check if identifiers (uniquely identifies each observation) -- yes
+df_Biography %>% 
+  group_by(ID_t, splink) %>% 
+  filter(n() > 1)
+# drop variable wave from spell data
+df_Biography <- df_Biography %>% 
+  select(-wave) 
+
+# 2) CohortProfile
+df_CohortProfile <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_CohortProfile_R_19-0-0.sav')
+# check if identifiers -- yes
+df_CohortProfile %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+# how many distinct respondents?
+df_CohortProfile %>% 
+  distinct(ID_t) %>% 
+  nrow() %>% # number of rows in the resulting dataframe
+  print()
+table(df_CohortProfile$wave)
+# check participation status by wave
+table(df_CohortProfile$tx80220, 
+      df_CohortProfile$wave)
+# 1 = participation, 2 = temporary dropped out, 3 = final dropped out
+
+# 3) pTargetCATI
+# load pTargetCATI
+df_pTargetCATI <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_pTargetCATI_R_19-0-0.sav')
+# check if identifiers
+df_pTargetCATI %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+# select variables
+sub_pTargetCATI <- df_pTargetCATI %>% 
+  select(ID_t, wave, # identifiers
+         t516105, # political interest
+         t400500_g1, # generation status (new)
+         t731301_g1, # mother edu ISCED-97
+         t731301_g2, # mother edu CASMIN
+         t731301_g3, # mother edu years = f(CASMIN)
+         t731403_g4, # mother profession (ISCO-08)
+         #ISCO: International Standard Classification of Occupations 
+         t731403_g8, # mother profession (EGP)
+         t731403_g9, # mother profession (BLK)
+         t731403_g14, # mother profession (ISEI-08)
+         #ISEI: International Socio-Economic Index of occupational status
+         t731403_g15, # mother profession (CAMSIS)
+         t731403_g16, # mother profession (SIOPS08) 
+         #SIOPS: Standard International Occupational Prestige Scale
+         t731351_g1, # father edu ISCED-97
+         t731351_g2, # father edu CASMIN
+         t731351_g3, # father edu years = f(CASMIN)
+         t731453_g4, # father profession (ISCO-08)
+         t731453_g8, # father profession (EGP)
+         t731453_g9, # father profession (BLK)
+         t731453_g14, # father profession (ISEI-08)
+         t731453_g15, # father profession (CAMSIS)
+         t731453_g16, # father profession (SIOPS-08)
+         
+         tg01003_g1, # type of higher education institution WT 2010 **
+         tg04001_g1R, # study area subject 1 WT 2010 ** (destatis; PAPI questionnaire)
+         tg04001_g3, # subject group subjectct 1 WT 2010 **
+         tg04001_g4R,# ISCED-97 subject 1 WT 2010 (3digits)
+         tg04001_g5R,# ISCED-97 subject 1 WT 2010 (2 digits)
+         tg04001_g6, # ISCED-97 subject 1 WT 2010 (1 digits)
+         tg04001_g7, # subject group WT 2010 (for merging with context data) **
+         tg04001_g2R, # classification study area sampling subject1 WT 2010(destatis)
+         tg04002, # subject 1 WT 2010 (major/minor subject)
+         tg04004_g1R, # study area subject 2 WT 2010 (destatis)
+         tg04004_g3, # subject group subject 2 WT 2010 (destatis)
+         tg04004_g4R, # ISCED-97 subject 2 WT 2010 (3 digits)
+         tg04004_g5R, # ISCED-97 subject 2 WT 2010 (2 digits)
+         tg04004_g6, # ISCED-97 subject 2 WT 2010 (1 digit)
+         tg04004_g2R, # classification study area sampling subject2 WT 2010(destatis)
+         tg04005, # subject 2 WT 2010 (major/minor subject)
+         tg04007_g1R, # study area subject 3 WT 2010 (destatis)
+         tg04007_g3, # subject group subject 3 WT 2010 (destatis)
+         tg04007_g4R, # ISCED-97 subject 3 WT 2010 (3 digits)
+         tg04007_g5R, # ISCED-97 subject 3 WT 2010 (2 digits)
+         tg04007_g6, # ISCED-97 subject 3 WT 2010 (1digit)
+         tg04007_g2R, # classification study area sampling subject 3 WT 2010 (destatis)
+         tg04008, # subject 3 WT 2010 (major/minor subject)
+         tg02001, # intended degree WT 2010 
+         
+         tg15207_g1R, # location (west/east) of higher edu institution
+         tg15207_g2R, # location (federal state)
+         tg04009_g1, # type of course: mono/interdisciplinarity
+         tg04009_g2R,# type of course: subject group for interdisciplinarity 
+         
+         t34001h, # reading quantity higher education (minutes)
+         t34001j, # reading quantity free time (minutes)
+         t34005a, # number of books
+         t34005b, # number books parents household
+         t34005c, # making use of books parents household
+         
+         t516105, # political interest
+         t516006, # potential political participation: collection of signatures
+         t516010, # potential political participation: authorized demonstration
+         t516014, # potential political participation: occupy buildings
+         t516005, # actual political participation: collection of signatures
+         t516009, # actual political participation: authorized demonstration
+         t516013, # actual political participation: occupy buildings
+         t516300, # parliamentary election turnout
+         t516106, # politics complicated
+         t516200, # left-right classification
+         
+         tg2411a, # study satisfaction: enjoy degree course
+         tg2411d, # study satisfaction: on the whole, satisfied with actual studies
+         tg2411f, # study satisfaction: degree course kills me
+         tg2411g, # study satisfaction: degree course is interesting
+         t514008_v1, # satisfaction with higher education
+         t517001, # anomie: majority uninterested in their fellow human beings
+         t324110, # social capital info job
+         t325110, # social capital effort job
+         
+         t700001, # gender
+         t70000y, # birth year
+         tg20500, # is currently studying
+         tf11105, # Abitur/Fachhochschulreife obtrained in Germany
+         ts15911, # auxiliary variable: highest degree
+         t531260, # financial resources total (monthly)
+         t531262, # get by with available money
+         t41203a, # language use with friends
+         
+         t514009, # satisfaction with work
+         ts15911_g1, # highest degree obtained, corrected
+         t271805 # media digital learning
+  )
+
+table(sub_pTargetCATI$tg15207_g1R) # variable access in remote NEPS
+table(sub_pTargetCATI$wave)
+
+# 4) pTargetCAWI
+# load pTargetCAWI
+df_pTargetCAWI <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_pTargetCAWI_R_19-0-0.sav')
+# check if identifiers -- yes
+df_pTargetCAWI %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+# select variables
+sub_pTargetCAWI <- df_pTargetCAWI %>% 
+  select(ID_t, wave, # identifiers
+         tg51000, # currently studying
+         tg51004, # course of studies dropped out/interrupted/completed
+         tg50007, # auxiliary variable: highest degree
+         tg51002 # currently in Master's degree program
+  )
+table(sub_pTargetCAWI$wave)
+table(sub_pTargetCATI$wave)
+
+# merge CAWI_sub and CATI_sub
+pTarget_sub <- merge(sub_pTargetCATI, sub_pTargetCAWI, 
+             by= c("ID_t","wave"), all = TRUE)
+table(pTarget_sub$wave)
+# check if identifiers -- yes
+pTarget_sub %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+
+# a) Merge CohortProfile with pTarget_sub --> "df1"
+df1 <- merge(df_CohortProfile, pTarget_sub, by= c("ID_t","wave"), all.x=TRUE)
+# merging syntax from datamanual
+
+# check if identifiers --yes
+df1 %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+
+
+# 0) Add weights
+df_Weights <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_Weights_R_19-0-0.sav')
+# merge to "df1"
+df1 <- merge(df1, df_Weights, by= "ID_t", all.x=TRUE)
+# check if identifiers --yes
+df1 %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+
+#-------------------------------------#
+#--------- Spell data ----------------#
+#-------------------------------------#
+
+# 5) spVocTrain
+df_spVocTrain <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_spVocTrain_R_19-0-0.sav')
+# $tx20100: data recommended for linkage *
+table(df_spVocTrain$tx20100)
+sub_spVocTrain <- df_spVocTrain %>% 
+  filter(tx20100 == 1)
+# subset spVocTrain, only keep full harmonized episodes
+table(df_spVocTrain$subspell)
+sub_spVocTrain <- subset(df_spVocTrain, df_spVocTrain$subspell ==  0)
+dim(df_spVocTrain)
+# check if identifiers -- YES (after dropping subspells)
+sub_spVocTrain %>% 
+  group_by(ID_t, splink) %>% 
+  filter(n() > 1)
+# select variables
+sub_spVocTrain <- sub_spVocTrain %>% 
+  select(ID_t, splink, # identifiers
+         #spell, (??)
+         h_aktstu, # the first study episode in winter term (WT) 2010/2011
+         tg01003_ha, # type of higher education institution **
+         
+         tg24162_g1, # subject 1(if major/minor)
+         tg24165_g1, # subject 2(if major/minor)
+         tg24168_g1, # subject 3(if major/minor)
+         tg24170_g1R, # study area subject 1 (destatis 2010/11) generated
+         tg24170_g2, # subject group subject 1 (destatis 2010/11) generated
+         tg24170_g3R, # ISCED-97 subject 1 (3-digit level) generated
+         tg24170_g4R, # ISCED-97 subject 1 (2-digit level) generated
+         tg24170_g5, # ISCED-97 subject 1 (1-digit level) generated
+         tg24163_g1R, # study area subject 2 (destatis 2010/11)
+         tg24163_g2, # subject group subject 2 (destatis 2010/11)
+         tg24163_g3R, # ISCED-97 subject 2 (3digit level)
+         tg24163_g4R, # ISCED-97 subject 2 (2digit level)
+         tg24163_g5, # ISCED-97 subject 2 (1digit level)
+         
+         tg24159,    # change of subject as against pre-episode
+         
+         ts15218, # successful completion of the training
+         ts15219, # vocational qualification
+         ts15201 # what training/academic qualification
+  )
+# Quoted from data manual: the variables 
+# `tg24162_g1`, `tg24165_g1`, `tg24168_g1`,`tg24170_g1`-`tg24170_g5`, `tg24173_g1`-`tg24173_g5`, 
+# and `tg24176_g1`-`tg24176_g5` 
+# provide complete subject information for all study episodes
+
+
+# b) Merge to Biography --> "sp1"
+sp1 <- merge(df_Biography, sub_spVocTrain, 
+             by= c("ID_t","splink"), all.x = TRUE) # syntax from datamanual, all.x = TRUE.
+
+# check if identifiers -- yes
+sp1 %>% 
+  group_by(ID_t, splink) %>% 
+  filter(n() > 1)
+
+# 6) spSchool
+df_spSchool <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_spSchool_R_19-0-0.sav')
+# subset spVocTrain, only keep full harmonized episodes
+sub_spSchool <- subset(df_spSchool, df_spSchool$subspell ==  0)
+dim(df_spSchool)
+# check if identifiers ---- YES (after dropping subspells)
+sub_spSchool %>% 
+  group_by(ID_t, splink) %>% 
+  filter(n() > 1)
+# select variables
+sub_spSchool <- sub_spSchool %>% 
+  select(ID_t, splink, # identifiers
+         ts11209, # schoolleaving qualification
+         ts11218, # final grade schoolleaving certificate
+         t724712, # last halfyear points Mathematics
+         t724714  # last halfyear points German
+  )
+
+# d) Merge to sp1 --> "sp1"
+sp1 <- merge(sp1, sub_spSchool, 
+             by= c("ID_t","splink"), all.x = TRUE)
+# check if identifiers ---- YES
+sp1 %>% 
+  group_by(ID_t, splink) %>% 
+  filter(n() > 1)
+
+
+## Save merged ----
+save(df1, file = "df1.RData")
+save(sp1, file = "sp1.RData")
+rm(list = ls()) # clear environment
+
+
+#=========================================================#
+# 2. Data RECODE ====
+#=========================================================#
+
+## 1) Survey variables ----
+load("df1.RData") # panel merged
+# check duplicates --- (none)
+df1 %>% 
+  group_by(ID_t, wave) %>%
+  filter(n() > 1) 
+# unique individuals in each wave (n=17909)
+df1 %>%
+  group_by(wave) %>%
+  summarise(unique_individuals = n_distinct(ID_t))
+
+# make a copy of "df1"
+df <- df1
+
+## 2) Political engagement "var_recoded"
+
+### Political interest `t516105_recoded`/`t516105_recoded_bi`
+# how much are you interested in politics?
+table(df$wave,df$t516105) 
+# $t516105 measured in: w3 w5 w10 w13 w15 w16 w18 w19
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516105) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes 
+attr(df$t516105, "labels") 
+# 1 == very interested, 4 == not interested at all
+
+# reverse the order of the levels, so that: 
+# 0 == not interested at all, 3 == very interested
+df <- df %>% 
+  mutate(t516105_recoded = 4 - as.numeric(t516105))
+
+# check order
+table(df$t516105)
+table(df$t516105_recoded)
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516105_recoded) %>% 
+  table(useNA = "always")
+
+# recode t516105_recoded to a binary variable
+df <- df %>% 
+  mutate(t516105_recoded_bi = 
+           case_when(t516105_recoded %in% c("1","2") ~ 0, 
+                     t516105_recoded %in% c("3","4") ~ 1))
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516105_recoded_bi) %>% 
+  table(useNA = "always")
+
+
+### Politics complicated `t516106_recoded`/`t516106_recoded_bi`
+# how often do politics seems so complicated to you that you do not really understand what it's all about?
+table(df$wave,df$t516106)
+
+# distribution
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516106) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes
+attr(df$t516106, "labels")
+# 1 == never, 5 == often
+
+# recode, so that: 
+# 0 == politics easy to understand (original: never feel complicated),
+# 4 == politics hard to understand (original: often feel complicated).
+df <- df %>% 
+  mutate(t516106_recoded = as.numeric(t516106) - 1)
+
+# check order
+table(df$t516106)
+table(df$t516106_recoded)
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516106_recoded) %>% 
+  table(useNA = "always")
+
+# dichotomize
+df <- df %>% 
+  mutate(t516106_recoded_bi = case_when(
+    t516106_recoded == 0 ~ 0, # never 
+    t516106_recoded == 1 ~ 0, # rarely
+    t516106_recoded == 2 ~ 0, # sometimes
+    t516106_recoded == 3 ~ 1, # often
+    t516106_recoded == 4 ~ 1, # very often
+    TRUE ~ NA_integer_  
+    # If none conditions met, to NA
+  ))
+
+
+### Voter turnout `t516300_recoded`
+# did you vote in the last parliamentary election? 
+table(df$wave,df$t516300)
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516300) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes
+attr(df$t516300, "labels")
+# 1 == yes, 2 == no
+
+# reverse values so 1 == yes, 0 == no
+df <- df %>% 
+  mutate(t516300_recoded = 2 - as.numeric(t516300))
+
+# check order
+table(df$t516300)
+table(df$t516300_recoded)
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516300_recoded) %>% 
+  table(useNA = "always")
+
+
+### Actual: collection of signatures `t516005_recoded`
+#  if you have ever participated in a collection of signatures
+table(df$wave,df$t516005)
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516005) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes
+attr(df$t516005, "labels")
+# 1 == yes, 2 == no
+
+# reverse values so 1 == yes, 0 == no
+df <- df %>% 
+  mutate(t516005_recoded = 2 - as.numeric(t516005))
+
+# check order
+table(df$t516005)
+table(df$t516005_recoded)
+
+### Actual: authorized demonstration `t516009_recoded`
+# have you ever participated in an authorized demonstration?
+table(df$wave,df$t516009)
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516009) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes
+attr(df$t516009, "labels")
+# 1 == yes, 2 == no
+
+# reverse values so 1 == yes, 0 == no
+df <- df %>% 
+  mutate(t516009_recoded = 2 - as.numeric(t516009))
+
+# check order
+table(df$t516009)
+table(df$t516009_recoded)
+
+### Left-right classification `t516200_recoded`
+# where on a scale from 0 (left) to 10 (right) would you grade yourself?
+table(df$wave,df$t516200)
+
+df %>%
+  filter(wave == 3) %>% 
+  pull(t516200) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# check attributes
+attr(df$t516200, "labels")
+# 0 == left, 10 == right
+
+# recode to numeric for easier analysis
+df <- df %>% 
+  mutate(t516200_recoded = as.numeric(t516200))
+
+# check 
+class(df$t516200_recoded)
+table(df$t516200_recoded[df$wave == 3], useNA = "always")
+
+
+
+## 2) Episode data files ----
+
+# recode and merge with panel data
+load("sp1.RData") # spells merged
+# make a copy of "df1"
+sp <- sp1
+
+## 1) Check spells
+# spell types
+attr(sp$sptype, "labels")
+
+# distribution
+sp %>%
+  pull(sptype) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always") %>% 
+  kable()
+
+# convert "haven_labelled" variable to its underlying values
+sp$sptype <- as.character(labelled::to_factor(sp$sptype))
+table(sp$sptype, useNA = "always")
+
+# keep only useful spell types
+sp <- sp %>% 
+  filter(sptype %in% c("School", "VocTrain"))
+table(sp$sptype)
+
+# school-leaving qualification
+sp %>%
+  pull(ts11209) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# HE types
+attr(sp$tg01003_ha, "label")
+attr(sp$tg01003_ha, "labels")
+
+# distribution
+sp %>%
+  pull(tg01003_ha) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always") %>% 
+  kable()
+
+# Check if all end year >= start year
+invalid_cases <- sp[sp$endy < sp$starty, ]
+# print the invalid cases
+if (nrow(invalid_cases) > 0) {
+  cat("!! Invalid cases !! start years are greater than end years.")
+  print(invalid_cases)
+} else {
+  cat("All end years are greater than or equal start years.")
+}
+
+## 2) School-history variables (once/time-constant)
+# $ts11209 higher education entrance qualification
+sp %>%
+  pull(ts11209) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always") %>% 
+  kable()
+
+# $ts11218 final grade school-leaving certificate
+ggplot(sp) + 
+  geom_histogram(aes(x = ts11218))
+
+# $t724712 last halfyear points mathematics
+ggplot(sp) + 
+  geom_histogram(aes(x = t724712))
+
+# $t724714 last half-year points German 
+ggplot(sp) + 
+  geom_histogram(aes(x = t724714))
+
+# check if unique values of these variables for each individual
+# create a function
+if_duplicate <- function(data, group_var, filter_var) {
+  data %>%
+    group_by({{ group_var }}, {{ filter_var }}) %>%
+    na.omit() %>%
+    filter(n() > 1)
+}
+
+if_duplicate(sp, ID_t, ts11209) # no duplicates
+if_duplicate(sp, ID_t, ts11218) # no duplicates
+if_duplicate(sp, ID_t, t724712) # no duplicates
+if_duplicate(sp, ID_t, t724714) # no duplicates
+
+# fill NAs in those columns with their unique values within each individual defined by "ID_t")
+variables_fill <- c("ts11209", "ts11218", "t724712","t724714")
+sp_filled <- sp %>%
+  group_by(ID_t) %>%
+  fill(variables_fill, .direction = "downup") %>% 
+  fill(variables_fill, .direction = "updown") # fills missing values
+# based on the most recent non-missing value 
+# within each group defined by group_by(ID_t).
+
+#check NAs (how many rows?)
+colSums(is.na(sp[, c("ts11209", "ts11218", "t724712","t724714")])) 
+colSums(is.na(sp_filled[, c("ts11209", "ts11218", "t724712","t724714")]))
+
+
+## 3) Expand rows by Datetimes (month-year)
+# change time (start/end) variables to Datetimes format
+sp_date <- sp_filled %>%
+  mutate(start_date = as.Date(paste(starty, startm, "01", sep = "-"))) %>% 
+  mutate(end_date = as.Date(paste(endy, endm, "01", sep = "-"))) %>% 
+  # assume day "01" in each month for easier formatting
+  select(1:4, start_date, end_date, everything()) # switch variables order
+
+# expand the rows based on start to end dates for each episode of each individual
+sp_expanded <- sp_date %>%
+  rowwise() %>% # perform operation on each row 
+  mutate(date = list(seq.Date(from = start_date, to = end_date, by = "month"))) %>% 
+  unnest(date) %>% 
+  select(1:4, date, everything())
+
+## 4) Selecting and merging `sp` spell data set with with panel data set `df`
+
+# generate a "surveydate" variable in the PANEL data set for merging identifiers
+df <- df %>%
+  mutate(date = as.Date(paste(tx8600y, tx8600m, "01", sep = "-"))) %>% 
+  select(1:2, date, everything())
+
+# MERGE use ($ID_t, $date)
+df_sp_expanded <- merge(df, sp_expanded,
+                        by= c("ID_t","date"), all.x=TRUE)
+
+# check if unique individuals by dates
+if_duplicate(df_sp_expanded, ID_t, date) # no duplicates 
+#ps., if_duplicate() is the function I created in previous chunk.
+
+
+# SAVE recoded and merged panel-episode data
+save(df_sp_expanded, file = "df_sp_expanded.RData")
+rm(list = ls())
+
+
+#=========================================================#
+# 3. Identify IDs ====
+#=========================================================#
+
+# Load data (panel-episode)
+load("df_sp_expanded.RData")
+df <- df_sp_expanded
+class(df)
+
+## 3.1 Identify ids with unchanged disciplines ----
+## 1) Change of field of study: keep individuals with no change in subject.
+table(df$tg04001_g5R) # ISCED-97 subject 1 (2-digit) 2010 pTarget
+table(df$tg24170_g4R) # ISCED-97 subject 1 (2-digit) 2010 spVocTrain generated*
+
+df1 <- df %>%
+  group_by(ID_t) %>%
+  mutate(same_subject = if_else(all(na.omit(tg24170_g4R) 
+                                    == first(na.omit(tg24170_g4R))), 
+                                1, 0)) %>%
+  ungroup()
+
+table(df1$same_subject)
+
+df1 <- df1 %>% 
+  filter(same_subject == 1)
+
+table(df1$tg04001_g5R, df1$wave) # first-year subject
+table(df1$tg24170_g4R, df1$wave) # panel subject
+
+
+## 2) Generate `discipline` for students without change in subject during study
+
+# step 1: extract the first non-NA value of `tg24170_g4R` for each individual
+df2 <- df1 %>%
+  group_by(ID_t) %>%
+  mutate(first_tg24170_g4R = first(na.omit(tg24170_g4R))) %>%
+  ungroup()
+
+# step 2: check if the value of `tg04001_g5R` when `wave` == 1 matches the first `tg24170_g4R` value, 
+# but only if `first_tg24170_g4R` is not NA
+df_checked <- df2 %>%
+  filter(wave == 1) %>%
+  mutate(match = if_else(!is.na(first_tg24170_g4R) & tg04001_g5R != first_tg24170_g4R, 0, 1))
+
+# step 3: create a new dataframe with only the unmatched individuals (where match == 0)
+table(df_checked$match)
+unmatched <- df_checked %>% filter(match == 0)
+
+# step 4: drop unmatched ids
+df2 <- df2 %>%
+  anti_join(unmatched, by = "ID_t")
+
+# step 5: generate a new variable `discipline`
+df2 <- df2 %>%
+  mutate(discipline = tg04001_g5R) %>% 
+  group_by(ID_t) %>% 
+  fill(discipline, .direction = "downup") %>% # fill as time-constant
+  ungroup()
+sum(is.na(df2$discipline))
+
+# check
+df2 %>%
+  pull(discipline) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+# drop NAs in `discipline`
+df2 <- df2 %>% drop_na(discipline)
+
+## 3) Convert `discipline` to its values
+# convert "haven_labelled" subject variable to its underlying values
+df2$discipline <- as.character(labelled::to_factor(df2$discipline))
+table(df2$discipline, useNA = "always")
+# correct letters in the original labels for consistency
+df3 <- df2 %>% 
+  mutate(discipline = 
+           recode(discipline, 
+                  "engineering and technical professions" = "Engineering and technical professions",
+                  "Social and behavioural science" = "Social and behavioral science"))
+
+table(df2$discipline)
+table(df3$discipline, df3$wave)
+
+
+## 3.2 Covariates rename ----
+# birth year
+table(df3$t70000y, useNA = "always")
+hist(df3$t70000y)
+# gender
+table(df3$t700001, useNA = "always")
+df3 <- df3 %>% 
+  mutate(gender = case_when(
+    t700001 == 1 ~ 0, # male
+    t700001 == 2 ~ 1, # female
+    TRUE ~ t700001))
+table(df3$gender, useNA = "always")
+# mother ISEI-08
+hist(df3$t731403_g14)
+df3$mother_ISEI08 <- df3$t731403_g14
+# father ISEI-08
+hist(df3$t731453_g14)
+df3$father_ISEI08 <- df3$t731453_g14
+# last-year Mathematics
+hist(df3$t724712)
+df3$last_math <- df3$t724712
+# last-year German
+hist(df3$t724714)
+df3$last_german <- df3$t724714
+# migration background 
+table(df3$t400500_g1, useNA = "always")
+df3 <- df3 %>% 
+  mutate(generation_status = case_when(
+    t400500_g1 %in% 0 ~ 0, # no migrant background
+    t400500_g1 %in% 1:10 ~ 1, # 1st-3.75th generation
+    TRUE ~ t400500_g1))
+table(df3$generation_status, useNA = "always")
+# geographical location (west/east) 
+# NOTE: variable access in remote NEPS
+table(df3$tg15207_g1R)
+df3 <- df3 %>% 
+  mutate(facility_west = case_when(
+    tg15207_g1R == 1 ~ 1, # west
+    tg15207_g1R == 2 ~ 0, # east
+    TRUE ~ tg15207_g1R))
+table(df3$facility_west)
+
+# fill missing rows of time-constant covariates in individuals
+df3 <- df3 %>%
+  group_by(ID_t) %>%
+  fill(gender, mother_ISEI08, father_ISEI08, 
+       facility_west, generation_status,
+       last_math, last_german, 
+       .direction = "downup") %>%
+  ungroup()
+
+## 3.3 Rename political variables for analysis ----
+df3$political_interest_bi <- df3$t516105_recoded_bi
+df3$political_interest <- df3$t516105_recoded
+
+df3$politics_complicated_bi <- df3$t516106_recoded_bi
+df3$politics_complicated <- df3$t516106_recoded
+
+df3$left_right <- df3$t516200_recoded
+
+df3$participate_signatures <- df3$t516005_recoded
+df3$participate_demonstration <- df3$t516009_recoded
+df3$vote <- df3$t516300_recoded
+
+
+## 3.4 Identify duplicates and remove ----
+# generate year
+df3_1 <- df3 %>% 
+  mutate(year = as.numeric(year(date)))
+table(df3_1$year)
+table(df3_1$wave)
+# reorder the columns to move 'year' to the second
+df3_1 <- df3_1 %>%
+  select(ID_t, year, everything())
+# check
+df3_1 %>%
+  group_by(ID_t, wave) %>%
+  filter(n() > 1)
+
+political_outcomes <- c("political_interest", "politics_complicated", "left_right", "vote", "participate_signatures", "participate_demonstration")
+
+# create a function to remove duplicates, prioritizing rows with non-missing political outcomes
+remove_duplicates_prioritize_outcomes <- function(df, political_outcomes) {
+  df %>%
+    group_by(ID_t, year) %>%
+    arrange(desc(rowSums(!is.na(select(., all_of(political_outcomes)))))) %>%
+    slice(1) %>%
+    ungroup()
+}
+
+# remove duplicates
+df3_1 <- remove_duplicates_prioritize_outcomes(df3_1, political_outcomes)
+
+# check
+df3_1 %>%
+  group_by(ID_t, year) %>%
+  filter(n() > 1)
+
+df3_1 <- df3_1 %>% 
+  mutate(year = year - 2010)
+table(df3_1$year)
+n_distinct(df3$ID_t)
+n_distinct(df3_1$ID_t)
+
+
+## 3.5 Identify dropout/graduation ----
+# (codes from Dietmar in NEPS forum (posted Jul.2021, in Stata though with my correction))
+
+# load StudyStates dataset 
+df_StudyStates <- read_sav('Z:/SUF/remote/SC5/SC5_R_19-0-0/SPSS/en/SC5_StudyStates_R_19-0-0.sav')
+# check if identifiers -- YES
+df_StudyStates %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+
+# check variable
+df_StudyStates %>%
+  pull(tx15317) %>% 
+  labelled::to_factor() %>% 
+  table(useNA = "always")%>% 
+  kable()
+
+attr(df_StudyStates$tx15317, "labels")
+table(df_StudyStates$tx15317, df_StudyStates$wave)
+
+# subset and keep only relevant degree qualification (tertiary+) 
+sub_StudyStates <- df_StudyStates %>%
+  filter(tx15317 %in% c(7:20, 29, NA))
+table(sub_StudyStates$tx15317, sub_StudyStates$wave)
+
+# max level of degree of an individual, assign "0" to individual without any degree
+sub_StudyStates1 <- sub_StudyStates %>%
+  group_by(ID_t) %>%
+  mutate(max_degree = ifelse(all(is.na(tx15317)), 0, max(tx15317, na.rm = TRUE))) %>%
+  ungroup() %>%
+  select(1:2, max_degree, everything()) # switch variables order
+
+# check
+table(sub_StudyStates1$max_degree)
+# check distinct ids in each max_degree
+sub_StudyStates1 %>%
+  select(ID_t, max_degree) %>%
+  distinct() %>%
+  count(max_degree)
+
+# generate a binary variable indicating whether an individual has at least a tertiary qualification
+sub_StudyStates1 <- sub_StudyStates1 %>%
+  group_by(ID_t) %>%
+  mutate(if_degree = ifelse(max_degree == 0, 0, 1)) %>%
+  ungroup()
+table(sub_StudyStates1$if_degree)
+
+
+# check if it is time-invariant -- yes
+sub_StudyStates1 %>%
+  group_by(ID_t) %>%
+  summarise(variance = var(max_degree, na.rm = TRUE)) %>%
+  count(variance != 0)
+
+# merge it to the analysis dataset 
+df_sc5_merged <- merge(df3_1, sub_StudyStates1, 
+             by= c("ID_t","wave"), all.x = TRUE)
+# check identifiers
+df_sc5_merged %>% 
+  group_by(ID_t, wave) %>% 
+  filter(n() > 1)
+
+## SAVE identified-merged df ----
+save(df_sc5_merged, file = "df_sc5_merged.RData")
+
+# I want a csv as well
+write.csv(df_sc5_merged, "df_sc5_merged.csv", row.names = FALSE)
+
+
